@@ -1,17 +1,33 @@
 const path = require('path');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
 const { StatusCodes } = require('http-status-codes');
 const multer = require('multer');
 
 const { BadRequestError } = require('../errors/');
 
-const multerStorage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'public/imgs');
-    },
-    filename: function (req, file, cb) {
-        const fileExt = path.extname(file.originalname); // get the file extention
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + `${fileExt}`);
+// LOCAL Storage
+
+// const multerStorage = multer.diskStorage({
+//     destination: function (_req, file, cb) {
+//         cb(null, 'public/imgs');
+//     },
+//     filename: function (req, file, cb) {
+//         const fileExt = path.extname(file.originalname); // get the file extention
+//         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+//         cb(null, file.fieldname + '-' + uniqueSuffix + `${fileExt}`);
+//     },
+// });
+
+const multerStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'products', // Cloudinary folder
+        allowed_formats: ['jpg', 'png', 'jpeg', 'webp'], // restrict file types
+        use_filename: true,
+        unique_filename: true,
+        overwrite: false,
     },
 });
 
@@ -33,7 +49,7 @@ const upload = multer({ storage: multerStorage, fileFilter: multerFileFilter, li
 
 exports.uploadProductImage = upload.single('image');
 
-exports.uploadProduct = async (req, res) => {
+exports.uploadProductLocal = async (req, res) => {
     // Guard against missing file
     if (!req.file) {
         throw new BadRequestError('No file uploaded');
@@ -45,5 +61,23 @@ exports.uploadProduct = async (req, res) => {
     }
     res.status(StatusCodes.OK).json({
         image: { src: `/imgs/${req.file.filename}` },
+    });
+};
+
+exports.uploadProduct = async (req, res) => {
+    // Guard against missing file
+    if (!req.file) {
+        throw new BadRequestError('No file uploaded');
+    }
+
+    // Guard against empty file
+    if (req.file.size === 0) {
+        throw new BadRequestError('Uploaded file is empty');
+    }
+
+    res.status(StatusCodes.OK).json({
+        image: {
+            src: req.file.path, // secure Cloudinary URL
+        },
     });
 };
