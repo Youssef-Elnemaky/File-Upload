@@ -16,11 +16,6 @@ const multerStorage = multer.diskStorage({
 });
 
 function multerFileFilter(req, file, cb) {
-    // check if there is no file passed
-    if (!file) {
-        return cb(new BadRequestError('No file passed'), false);
-    }
-
     // check if the file is an image or not
     if (file.mimetype.startsWith('image')) {
         cb(null, true);
@@ -39,6 +34,15 @@ const upload = multer({ storage: multerStorage, fileFilter: multerFileFilter, li
 exports.uploadProductImage = upload.single('image');
 
 exports.uploadProduct = async (req, res) => {
+    // Guard against missing file
+    if (!req.file) {
+        throw new BadRequestError('No file uploaded');
+    }
+
+    // Guard against empty file
+    if (req.file.size === 0) {
+        throw new BadRequestError('Uploaded file is empty');
+    }
     res.status(StatusCodes.OK).json({
         image: { src: `/imgs/${req.file.filename}` },
     });
